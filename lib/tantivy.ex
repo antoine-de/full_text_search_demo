@@ -3,16 +3,7 @@ defmodule Tantivy do
   Documentation for Tantivy.
   """
 
-  @doc """
-  Hello world.
-
-  ## Examples
-
-      iex> Tantivy.hello()
-      :world
-
-  """
-  def hello do
-    :world
-  end
+  defdelegate init, to: __MODULE__.NIF
+  defdelegate search(resource, query), to: __MODULE__.NIF
+  defdelegate add_entry(resource, title, body), to: __MODULE__.NIF
 end

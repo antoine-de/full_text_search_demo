@@ -7,6 +7,8 @@ defmodule Tantivy.MixProject do
       version: "0.1.0",
       elixir: "~> 1.7",
       start_permanent: Mix.env() == :prod,
+      compilers: [:rustler | Mix.compilers()],
+      rustler_crates: rustler_crates(),
       deps: deps()
     ]
   end
@@ -22,8 +24,15 @@ defmodule Tantivy.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      # {:dep_from_hexpm, "~> 0.3.0"},
-      # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"},
+      {:rustler, "~> 0.18"},
+      {:benchee, "~> 0.13", only: :bench}
     ]
   end
+
+  defp rustler_crates do
+    [tantivy_nif: [path: "native/tantivy_nif", mode: rustc_mode(Mix.env())]]
+  end
+
+  defp rustc_mode(env) when env in [:prod, :bench], do: :release
+  defp rustc_mode(_env), do: :debug
 end
