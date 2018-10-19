@@ -1,1 +1,1 @@
-All the hard stuff is done by [tantivy](https://github.com/tantivy-search/tantivy) via [rustler](https://github.com/hansihe/rustler). This repo is just an example of how to use it from [elixir](https://elixir-lang.org/).
+All the hard stuff is done by [tantivy](https://github.com/tantivy-search/tantivy) via [rustler](https://github.com/hansihe/rustler). This repo is just a (poor) example of how to use it from [elixir](https://elixir-lang.org/).
