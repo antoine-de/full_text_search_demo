@@ -1,6 +1,6 @@
 extern crate tantivy;
 
-use tantivy::collector::TopCollector;
+use tantivy::collector::TopDocs;
 use tantivy::query::QueryParser;
 use tantivy::schema::*;
 use tantivy::{Index, IndexWriter};
@@ -13,12 +13,13 @@ pub struct Searcher {
 
 impl Searcher {
     pub fn new() -> Searcher {
-        let mut schema_builder = SchemaBuilder::default();
-        schema_builder.add_text_field("title", TEXT | STORED);
-        schema_builder.add_text_field("body", TEXT);
+        let mut schema_builder = Schema::builder();
+        let _title = schema_builder.add_text_field("title", TEXT | STORED);
+        let _body = schema_builder.add_text_field("body", TEXT);
         let schema = schema_builder.build();
+
         let index = Index::create_in_ram(schema.clone());
-        let index_writer = index.writer(10_000_000).unwrap();
+        let index_writer = index.writer(100_000_000).unwrap();
 
         Searcher {
             schema,
@@ -36,13 +37,12 @@ impl Searcher {
         ));
 
         self.index_writer.commit()?;
-        self.index.load_searchers()?;
 
         Ok(())
     }
 
     pub fn search(&self, query: String) -> tantivy::Result<Vec<Document>> {
-        let searcher = self.index.searcher();
+        let searcher = self.index.reader()?.searcher();
 
         let query_parser = QueryParser::for_index(
             &self.index,
@@ -53,14 +53,11 @@ impl Searcher {
         );
 
         let query = query_parser.parse_query(&query)?;
-        let mut top_collector = TopCollector::with_limit(10);
+        let top_docs = searcher.search(&*query, &TopDocs::with_limit(10))?;
 
-        searcher.search(&*query, &mut top_collector)?;
-
-        let docs = top_collector
-            .docs()
+        let docs = top_docs
             .iter()
-            .map(|doc_address| searcher.doc(&doc_address).unwrap())
+            .map(|(_score, doc_address)| searcher.doc(*doc_address).unwrap())
             .collect();
 
         Ok(docs)

@@ -78,8 +78,9 @@ fn doc_to_term<'a>(env: Env<'a>, doc: tantivy::Document) -> Term<'a> {
             tantivy::schema::Value::Str(v) => v.encode(env),
             tantivy::schema::Value::U64(v) => v.encode(env),
             tantivy::schema::Value::I64(v) => v.encode(env),
-            tantivy::schema::Value::Facet(v) => v.encoded_bytes().encode(env),
+            tantivy::schema::Value::Facet(v) => v.encoded_str().encode(env),
             tantivy::schema::Value::Bytes(v) => v.encode(env),
+            tantivy::schema::Value::Date(v) => v.to_rfc3339().encode(env),
         }).collect();
     terms.encode(env)
 }
