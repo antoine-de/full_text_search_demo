@@ -2,8 +2,6 @@
 extern crate tantivy;
 #[macro_use]
 extern crate rustler;
-#[macro_use]
-extern crate lazy_static;
 
 use rustler::resource::ResourceArc;
 use rustler::{Encoder, Env, Error, NifResult, Term};
@@ -38,7 +36,7 @@ fn init<'a>(env: Env<'a>, _args: &[Term<'a>]) -> NifResult<Term<'a>> {
 
 fn search<'a>(env: Env<'a>, args: &[Term<'a>]) -> NifResult<Term<'a>> {
     let resource: ResourceArc<SearcherResource> = args[0].decode()?;
-    let query: String = try!(args[1].decode());
+    let query: String = args[1].decode()?;
 
     let searcher = match resource.0.try_lock() {
         Ok(guard) => guard,
@@ -50,14 +48,14 @@ fn search<'a>(env: Env<'a>, args: &[Term<'a>]) -> NifResult<Term<'a>> {
             let terms: Vec<Term<'a>> = docs.into_iter().map(|doc| doc_to_term(env, doc)).collect();
             Ok(terms.encode(env))
         }
-        Err(_) => Ok(atoms::error().encode(env)),
+        Err(error) => Ok((atoms::error(), error_to_term(env, error)).encode(env)),
     }
 }
 
 fn add_entry<'a>(env: Env<'a>, args: &[Term<'a>]) -> NifResult<Term<'a>> {
     let resource: ResourceArc<SearcherResource> = args[0].decode()?;
-    let title: String = try!(args[1].decode());
-    let body: String = try!(args[2].decode());
+    let title: String = args[1].decode()?;
+    let body: String = args[2].decode()?;
 
     let mut searcher = match resource.0.try_lock() {
         Ok(guard) => guard,
@@ -66,7 +64,7 @@ fn add_entry<'a>(env: Env<'a>, args: &[Term<'a>]) -> NifResult<Term<'a>> {
 
     match searcher.add_entry(title, body) {
         Ok(_) => Ok(atoms::ok().encode(env)),
-        Err(_) => Ok(atoms::error().encode(env)),
+        Err(error) => Ok((atoms::error().encode(env), error_to_term(env, error)).encode(env)),
     }
 }
 
@@ -83,4 +81,20 @@ fn doc_to_term<'a>(env: Env<'a>, doc: tantivy::Document) -> Term<'a> {
             tantivy::schema::Value::Date(v) => v.to_rfc3339().encode(env),
         }).collect();
     terms.encode(env)
+}
+
+fn error_to_term<'a>(env: Env<'a>, error: tantivy::Error) -> Term<'a> {
+    match error {
+        tantivy::Error::PathDoesNotExist(_v) => "PathDoesNotExist".encode(env),
+        tantivy::Error::FileAlreadyExists(_v) => "FileAlreadyExist".encode(env),
+        tantivy::Error::IndexAlreadyExists => "IndexAlreadyExist".encode(env),
+        tantivy::Error::LockFailure(_v, _w) => "LockFailure".encode(env),
+        tantivy::Error::IOError(_v)  => "IOError".encode(env),
+        tantivy::Error::DataCorruption(_v) => "DataCorruption".encode(env),
+        tantivy::Error::Poisoned => "Poisoned".encode(env),
+        tantivy::Error::InvalidArgument(v) => v.encode(env),
+        tantivy::Error::ErrorInThread(v) => v.encode(env),
+        tantivy::Error::SchemaError(v) => v.encode(env),
+        tantivy::Error::SystemError(v) => v.encode(env),
+    }
 }
