@@ -1,9 +1,10 @@
 extern crate tantivy;
 
 use tantivy::collector::TopDocs;
-use tantivy::query::QueryParser;
+use tantivy::query::{QueryParser};
 use tantivy::schema::*;
 use tantivy::{Index, IndexWriter};
+use tantivy::tokenizer::NgramTokenizer;
 
 pub struct Searcher {
     schema: Schema,
@@ -14,12 +15,25 @@ pub struct Searcher {
 impl Searcher {
     pub fn new() -> Searcher {
         let mut schema_builder = Schema::builder();
-        let _title = schema_builder.add_text_field("title", TEXT | STORED);
-        let _body = schema_builder.add_text_field("body", TEXT);
+        let ngrams_indexing = TextFieldIndexing::default()
+            .set_tokenizer("ngram3")
+            .set_index_option(IndexRecordOption::WithFreqsAndPositions);
+
+        let text_options = TextOptions::default()
+            .set_indexing_options(ngrams_indexing.clone())
+            .set_stored();
+        let _title = schema_builder.add_text_field("title", text_options);
+
+        let body_options = TextOptions::default()
+            .set_indexing_options(ngrams_indexing);
+        let _body = schema_builder.add_text_field("body", body_options);
+
         let schema = schema_builder.build();
 
         let index = Index::create_in_ram(schema.clone());
-        let index_writer = index.writer(100_000_000).unwrap();
+        index.tokenizers()
+            .register("ngram3", NgramTokenizer::new(3, 3, false));
+        let index_writer = index.writer(50_000_000).unwrap();
 
         Searcher {
             schema,
