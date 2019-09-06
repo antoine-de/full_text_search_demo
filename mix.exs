@@ -24,7 +24,7 @@ defmodule Tantivy.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:rustler, "~> 0.18"},
+      {:rustler, "~> 0.20"},
       {:benchee, "~> 0.13", only: :bench}
     ]
   end
