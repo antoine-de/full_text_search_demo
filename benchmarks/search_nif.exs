@@ -27,11 +27,7 @@
         "yesterday, and my first task is to assure my dear sister of my welfare and " <>
         "increasing confidence in the success of my undertaking."
   }
-]
-|> Enum.each(fn entry ->
-  Tantivy.add_entry(resource, entry.title, entry.body)
-end)
+] |> Enum.each(fn entry -> Tantivy.add_entry(resource, entry.title, entry.body) end)
+Tantivy.search(resource, "fish")
 
-Benchee.run(%{
-  "Tantivy.search/1" => fn -> Tantivy.search(resource, "sea whale") end
-})
+Tantivy.explain(resource, "fish")

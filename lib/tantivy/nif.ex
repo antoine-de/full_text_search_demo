@@ -16,7 +16,17 @@ defmodule Tantivy.NIF do
   end
 
   @spec add_entry(resource, String.t(), String.t()) :: :ok | {:error, reason :: any}
-  def add_entry(_resource, _title, _body) do
+  def add_entry(_resource, _tilte, _body) do
+    error()
+  end
+
+  @spec add_entries(resource, String.t()) :: :ok | {:error, reason :: any}
+  def add_entries(_resource, _docs) do
+    error()
+  end
+
+  @spec explain(resource, String.t()) :: :ok | {:error, reason :: any}
+  def explain(_resource, query) do
     error()
   end
 

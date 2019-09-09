@@ -4,6 +4,7 @@ extern crate tantivy;
 extern crate rustler;
 
 use rustler::resource::ResourceArc;
+use rustler::ListIterator;
 use rustler::{Encoder, Env, Error, NifResult, Term};
 use search::Searcher;
 use std::sync::Mutex;
@@ -18,7 +19,9 @@ rustler_export_nifs! {
     [
         ("init", 0, init),
         ("search", 2, search),
-        ("add_entry", 3, add_entry)
+        ("add_entry", 3, add_entry),
+        ("add_entries", 2, add_entries),
+        ("explain", 2, explain),
     ],
     Some(load)
 }
@@ -52,6 +55,21 @@ fn search<'a>(env: Env<'a>, args: &[Term<'a>]) -> NifResult<Term<'a>> {
     }
 }
 
+fn explain<'a>(env: Env<'a>, args: &[Term<'a>]) -> NifResult<Term<'a>> {
+    let resource: ResourceArc<SearcherResource> = args[0].decode()?;
+    let query: String = args[1].decode()?;
+
+    let searcher = match resource.0.try_lock() {
+        Ok(guard) => guard,
+        Err(_) => return Err(Error::BadArg),
+    };
+
+    match searcher.explain(query) {
+        Ok(_) => Ok(atoms::ok().encode(env)),
+        Err(error) => Ok((atoms::error(), error_to_term(env, error)).encode(env)),
+    }
+}
+
 fn add_entry<'a>(env: Env<'a>, args: &[Term<'a>]) -> NifResult<Term<'a>> {
     let resource: ResourceArc<SearcherResource> = args[0].decode()?;
     let title: String = args[1].decode()?;
@@ -68,6 +86,23 @@ fn add_entry<'a>(env: Env<'a>, args: &[Term<'a>]) -> NifResult<Term<'a>> {
     }
 }
 
+fn add_entries<'a>(env: Env<'a>, args: &[Term<'a>]) -> NifResult<Term<'a>> {
+    let resource: ResourceArc<SearcherResource> = args[0].decode()?;
+    let docs: ListIterator = args[1].decode()?;
+
+    let docs = docs.map(|d| d.decode()).collect::<Result<_, _>>()?;
+
+    let mut searcher = match resource.0.try_lock() {
+        Ok(guard) => guard,
+        Err(_) => return Err(Error::BadArg),
+    };
+
+    match searcher.add_entries(docs) {
+        Ok(_) => Ok(atoms::ok().encode(env)),
+        Err(error) => Ok((atoms::error().encode(env), error_to_term(env, error)).encode(env)),
+    }
+}
+
 fn doc_to_term<'a>(env: Env<'a>, doc: tantivy::Document) -> Term<'a> {
     let terms: Vec<Term<'a>> = doc
         .field_values()
@@ -79,22 +114,11 @@ fn doc_to_term<'a>(env: Env<'a>, doc: tantivy::Document) -> Term<'a> {
             tantivy::schema::Value::Facet(v) => v.encoded_str().encode(env),
             tantivy::schema::Value::Bytes(v) => v.encode(env),
             tantivy::schema::Value::Date(v) => v.to_rfc3339().encode(env),
-        }).collect();
+        })
+        .collect();
     terms.encode(env)
 }
 
 fn error_to_term<'a>(env: Env<'a>, error: tantivy::Error) -> Term<'a> {
-    match error {
-        tantivy::Error::PathDoesNotExist(_v) => "PathDoesNotExist".encode(env),
-        tantivy::Error::FileAlreadyExists(_v) => "FileAlreadyExist".encode(env),
-        tantivy::Error::IndexAlreadyExists => "IndexAlreadyExist".encode(env),
-        tantivy::Error::LockFailure(_v, _w) => "LockFailure".encode(env),
-        tantivy::Error::IOError(_v)  => "IOError".encode(env),
-        tantivy::Error::DataCorruption(_v) => "DataCorruption".encode(env),
-        tantivy::Error::Poisoned => "Poisoned".encode(env),
-        tantivy::Error::InvalidArgument(v) => v.encode(env),
-        tantivy::Error::ErrorInThread(v) => v.encode(env),
-        tantivy::Error::SchemaError(v) => v.encode(env),
-        tantivy::Error::SystemError(v) => v.encode(env),
-    }
+    format!("{}", error).encode(env)
 }
