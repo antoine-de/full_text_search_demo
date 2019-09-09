@@ -99,7 +99,7 @@ impl Searcher {
     pub fn explain(&self, query: String) -> tantivy::Result<()> {
         let searcher = self.index.reader()?.searcher();
 
-        let mut query_parser = QueryParser::for_index(
+        let query_parser = QueryParser::for_index(
             &self.index,
             vec![
                 self.schema.get_field("title").unwrap(),
