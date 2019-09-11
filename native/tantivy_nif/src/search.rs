@@ -20,14 +20,12 @@ impl Searcher {
             .set_tokenizer("ngram3")
             .set_index_option(IndexRecordOption::WithFreqsAndPositions);
 
-        let text_options = TextOptions::default()
-            .set_indexing_options(ngrams_indexing.clone())
+        let int_options = IntOptions::default()
             .set_stored();
-        let _title = schema_builder.add_text_field("title", text_options);
+        let _id = schema_builder.add_u64_field("id", int_options);
 
         let body_options = TextOptions::default()
-            .set_indexing_options(ngrams_indexing)
-            .set_stored();
+            .set_indexing_options(ngrams_indexing);
         let _body = schema_builder.add_text_field("body", body_options);
 
         let schema = schema_builder.build();
@@ -46,7 +44,7 @@ impl Searcher {
         }
     }
 
-    pub fn add_entry(&mut self, title: String, body: String) -> tantivy::Result<()> {
+    pub fn add_entry(&mut self, id: String, body: String) -> tantivy::Result<()> {
         // {
 
         // let ngram = self.index.tokenizers().get("ngram3").unwrap();
@@ -63,11 +61,11 @@ impl Searcher {
         // }
 
         // println!("===========");
-        let schema_title = self.schema.get_field("title").unwrap();
+        let schema_id = self.schema.get_field("id").unwrap();
         let schema_body = self.schema.get_field("body").unwrap();
 
         self.index_writer.add_document(doc!(
-            schema_title => title,
+            schema_id => id,
             schema_body => body,
         ));
 
@@ -77,15 +75,15 @@ impl Searcher {
         Ok(())
     }
 
-    pub fn add_entries(&mut self, docs: Vec<(String, String)>) -> tantivy::Result<()> {
+    pub fn add_entries(&mut self, docs: Vec<(u64, String)>) -> tantivy::Result<()> {
         println!("adding entries {}", docs.len());
 
-        let schema_title = self.schema.get_field("title").unwrap();
+        let schema_id = self.schema.get_field("id").unwrap();
         let schema_body = self.schema.get_field("body").unwrap();
 
         for d in docs {
             self.index_writer.add_document(doc!(
-                schema_title => d.0,
+                schema_id => d.0,
                 schema_body => d.1,
             ));
         }
@@ -102,11 +100,10 @@ impl Searcher {
         let query_parser = QueryParser::for_index(
             &self.index,
             vec![
-                self.schema.get_field("title").unwrap(),
+                self.schema.get_field("id").unwrap(),
                 self.schema.get_field("body").unwrap(),
             ],
         );
-        query_parser.set_conjunction_by_default();
 
         let query = query_parser.parse_query(&query)?;
 
@@ -141,11 +138,11 @@ impl Searcher {
     pub fn search(&self, query: String) -> tantivy::Result<Vec<Document>> {
         let searcher = self.index.reader()?.searcher();
 
-        // let title = self.schema.get_field("title").unwrap();
-        // let title_term = Term::from_field_text(title, &query);
-        // let title_query = FuzzyTermQuery::new(title_term, 1, true);
-        // let title_docs = searcher
-        //     .search(&title_query, &TopDocs::with_limit(10))
+        // let id = self.schema.get_field("id").unwrap();
+        // let id_term = Term::from_field_text(id, &query);
+        // let id_query = FuzzyTermQuery::new(id_term, 1, true);
+        // let id_docs = searcher
+        //     .search(&id_query, &TopDocs::with_limit(10))
         //     .unwrap();
 
         // let body = self.schema.get_field("body").unwrap();
@@ -155,19 +152,18 @@ impl Searcher {
         //     .search(&body_query, &TopDocs::with_limit(10))
         //     .unwrap();
 
-        // println!("body docs: {}, title docs: {}", body_docs.len(), title_docs.len());
+        // println!("body docs: {}, id docs: {}", body_docs.len(), id_docs.len());
         // println!("body docs: {:?}", &body_docs);
 
-        // Ok(title_docs
+        // Ok(id_docs
         //     .iter()
         //     .chain(body_docs.iter())
         //     .map(|(_score, doc_address)| searcher.doc(*doc_address).unwrap())
         //     .collect())
 
-        let mut query_parser = QueryParser::for_index(
+        let query_parser = QueryParser::for_index(
             &self.index,
             vec![
-                self.schema.get_field("title").unwrap(),
                 self.schema.get_field("body").unwrap(),
             ],
         );
